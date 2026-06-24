@@ -67,6 +67,8 @@ import com.google.copybara.util.Glob;
 import com.google.copybara.util.console.Message;
 import com.google.copybara.util.console.Message.MessageType;
 import com.google.copybara.util.console.testing.TestingConsole;
+import com.google.testing.junit.testparameterinjector.TestParameter;
+import com.google.testing.junit.testparameterinjector.TestParameterInjector;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -80,10 +82,11 @@ import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
-@RunWith(JUnit4.class)
+@RunWith(TestParameterInjector.class)
 public class GitOriginTest {
+
+  @TestParameter private GitHashAlgorithm repoFormat;
 
   private static final String COMMIT_TIME = "2037-02-16T13:00:00Z";
   private String url;
@@ -140,7 +143,7 @@ public class GitOriginTest {
     repo =
         GitRepository.newRepo(
                 /*verbose*/ true, remote, new GitEnvironment(options.general.getEnvironment()))
-            .init();
+            .init(repoFormat);
   }
 
   private Reader<GitRevision> newReader() {
@@ -666,14 +669,14 @@ public class GitOriginTest {
   @Test
   public void getGitRevisionHasShaLabel() throws Exception {
     GitRevision head = repo.resolveReference(defaultBranch);
-    assertThat(head.associatedLabels().get("GIT_SHA1")).containsExactly(head.getHash());
-    assertThat(head.associatedLabels().get("GIT_SHORT_SHA1"))
+    assertThat(head.associatedLabels().get("GIT_HASH")).containsExactly(head.getHash());
+    assertThat(head.associatedLabels().get("GIT_SHORT_HASH"))
         .containsExactly(head.getHash().substring(0, 7));
 
     // Same as above but thru git.origin
-    assertThat(origin().resolve(defaultBranch).associatedLabels().get("GIT_SHA1"))
+    assertThat(origin().resolve(defaultBranch).associatedLabels().get("GIT_HASH"))
         .containsExactly(head.getHash());
-    assertThat(origin().resolve(defaultBranch).associatedLabels().get("GIT_SHORT_SHA1"))
+    assertThat(origin().resolve(defaultBranch).associatedLabels().get("GIT_SHORT_HASH"))
         .containsExactly(head.getHash().substring(0, 7));
   }
 
@@ -1197,7 +1200,7 @@ public class GitOriginTest {
 
     assertThat(newReader().change(getLastCommitRef()).getLabels())
         .containsAtLeast("foo", "bar", "baz", "bar");
-    assertThat(newReader().change(getLastCommitRef()).getLabels()).containsKey("GIT_SHA1");
+    assertThat(newReader().change(getLastCommitRef()).getLabels()).containsKey("GIT_HASH");
   }
 
   @Test

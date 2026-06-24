@@ -233,9 +233,14 @@ public class GitTestUtil {
   }
 
   public GitRepository mockRemoteRepo(String url) throws RepoException {
+    return mockRemoteRepo(url, GitHashAlgorithm.SHA1);
+  }
+
+  public GitRepository mockRemoteRepo(String url, GitHashAlgorithm repoFormat)
+      throws RepoException {
     // If this cast fails, it means you didn't call mockRemoteGitRepos first.
     return ((GitOptionsForTest) optionsBuilder.git)
-        .mockRemoteRepo(url, getGitEnv().getEnvironment());
+        .mockRemoteRepo(url, repoFormat, getGitEnv().getEnvironment());
   }
 
   public MockHttpTransport httpTransport() {
@@ -400,11 +405,16 @@ public class GitTestUtil {
     }
 
     public GitRepository mockRemoteRepo(String url, Map<String, String> env) throws RepoException {
+      return mockRemoteRepo(url, GitHashAlgorithm.SHA1, env);
+    }
+
+    public GitRepository mockRemoteRepo(
+        String url, GitHashAlgorithm repoFormat, Map<String, String> env) throws RepoException {
       GitRepository repo =
           GitRepository.newBareRepo(
               httpsRepos.resolve(url), new GitEnvironment(env), generalOptions.isVerbose(),
               DEFAULT_TIMEOUT, false);
-      repo.init();
+      repo.init(repoFormat);
       return repo;
     }
 

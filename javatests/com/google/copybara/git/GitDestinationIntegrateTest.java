@@ -26,6 +26,7 @@ import static com.google.copybara.util.CommandRunner.DEFAULT_TIMEOUT;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
 
+import com.google.common.base.Ascii;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -40,6 +41,7 @@ import com.google.copybara.exception.RepoException;
 import com.google.copybara.exception.ValidationException;
 import com.google.copybara.git.GitIntegrateChanges.Strategy;
 import com.google.copybara.git.GitRepository.GitLogEntry;
+import com.google.copybara.git.GitRevision.GitHashAlgorithm;
 import com.google.copybara.git.testing.GitTesting;
 import com.google.copybara.testing.DummyOrigin;
 import com.google.copybara.testing.DummyRevision;
@@ -50,6 +52,8 @@ import com.google.copybara.testing.git.GitTestUtil;
 import com.google.copybara.util.Glob;
 import com.google.copybara.util.console.Message.MessageType;
 import com.google.copybara.util.console.testing.TestingConsole;
+import com.google.testing.junit.testparameterinjector.TestParameter;
+import com.google.testing.junit.testparameterinjector.TestParameterInjector;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -59,10 +63,11 @@ import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
-@RunWith(JUnit4.class)
+@RunWith(TestParameterInjector.class)
 public class GitDestinationIntegrateTest {
+
+  @TestParameter private GitHashAlgorithm repoFormat;
 
   private static final String CHANGE_ID = "Id5287e977c0d840a6d84eb2c3c1841036c411890";
 
@@ -83,7 +88,11 @@ public class GitDestinationIntegrateTest {
     repoGitDir = Files.createTempDirectory("GitDestinationTest-repoGitDir");
     workdir = Files.createTempDirectory("workdir");
 
-    git("init", "--bare", repoGitDir.toString());
+    git(
+        "init",
+        "--bare",
+        "--object-format=" + Ascii.toLowerCase(repoFormat.name()),
+        repoGitDir.toString());
 
     console = new TestingConsole();
     options = new OptionsBuilder()
@@ -135,7 +144,8 @@ public class GitDestinationIntegrateTest {
   public void testIntegrateForUnrelatedBranchesFail()
       throws ValidationException, IOException, RepoException {
     Path repoPath = Files.createTempDirectory("test");
-    GitRepository repo = GitRepository.newRepo(/*verbose*/ true, repoPath, getGitEnv()).init();
+    GitRepository repo =
+        GitRepository.newRepo(/*verbose*/ true, repoPath, getGitEnv()).init(repoFormat);
     GitRevision feature1 = singleChange(repoPath, repo, "ignore_me", "Feature1 change");
     repo.branch("feature1").run();
 
@@ -169,7 +179,8 @@ public class GitDestinationIntegrateTest {
     GitDestination destination = destinationWithDefaultIntegrates();
     migrateOriginChange(destination, "Base change\n", "not important");
 
-    GitRepository repo = GitRepository.newRepo(/*verbose*/ true, repoPath, getGitEnv()).init();
+    GitRepository repo =
+        GitRepository.newRepo(/*verbose*/ true, repoPath, getGitEnv()).init(repoFormat);
     repo.simpleCommand("pull", "file://" + repoGitDir);
 
     GitRevision feature1 = singleChange(repoPath, repo, "ignore_me", "Feature1 change");
@@ -234,10 +245,11 @@ public class GitDestinationIntegrateTest {
     destinationFiles = Glob.createGlob(ImmutableList.of("foo/**"));
     Path gitDir = Files.createTempDirectory("gitdir");
     Path repoPath = Files.createTempDirectory("workdir");
-    GitRepository repo = GitRepository.newBareRepo(gitDir, getGitEnv(), /*verbose=*/ true,
-            DEFAULT_TIMEOUT, /*noVerify=*/ false)
-        .init()
-        .withWorkTree(repoPath);
+    GitRepository repo =
+        GitRepository.newBareRepo(
+                gitDir, getGitEnv(), /* verbose= */ true, DEFAULT_TIMEOUT, /* noVerify= */ false)
+            .init(repoFormat)
+            .withWorkTree(repoPath);
 
     singleChange(repoPath, repo, "base.txt", "first change");
     repo.branch("feature1").run();
@@ -283,7 +295,8 @@ public class GitDestinationIntegrateTest {
     GitDestination destination = destination(FAKE_MERGE);
     migrateOriginChange(destination, "Base change\n", "not important");
 
-    GitRepository repo = GitRepository.newRepo(/*verbose*/ true, repoPath, getGitEnv()).init();
+    GitRepository repo =
+        GitRepository.newRepo(/*verbose*/ true, repoPath, getGitEnv()).init(repoFormat);
     repo.simpleCommand("pull", "file://" + repoGitDir);
 
     GitRevision feature1 = singleChange(repoPath, repo, "ignore_me", "Feature1 change");
@@ -303,8 +316,10 @@ public class GitDestinationIntegrateTest {
             %s=file://%s feature1
             %s=file://%s feature2
             """,
-            GitModule.DEFAULT_INTEGRATE_LABEL, repo.getWorkTree(),
-            GitModule.DEFAULT_INTEGRATE_LABEL, repo.getWorkTree()),
+            GitModule.DEFAULT_INTEGRATE_LABEL,
+            repo.getWorkTree(),
+            GitModule.DEFAULT_INTEGRATE_LABEL,
+            repo.getWorkTree()),
         "some content");
 
     // Make sure commit adds new text
@@ -336,19 +351,22 @@ public class GitDestinationIntegrateTest {
 
   private GitDestination destination(Strategy strategy) throws ValidationException {
     return destination(
-        "url = '" + url + "'", String.format("push='%s'", primaryBranch),
+        "url = '" + url + "'",
+        String.format("push='%s'", primaryBranch),
         """
         integrates = [git.integrate(
                  ignore_errors = False,
                  strategy = '%s',
-            ),]""".formatted(strategy)
-    );
+            ),]\
+        """
+            .formatted(strategy));
   }
 
   @Test
   public void testIncludeFiles() throws ValidationException, IOException, RepoException {
     Path repoPath = Files.createTempDirectory("test");
-    GitRepository repo = GitRepository.newRepo(/*verbose*/ true, repoPath, getGitEnv()).init();
+    GitRepository repo =
+        GitRepository.newRepo(/*verbose*/ true, repoPath, getGitEnv()).init(repoFormat);
     singleChange(repoPath, repo, "ignore_me", "Feature1 change");
     repo.branch("feature1").run();
     singleChange(repoPath, repo, "ignore_me2", "Feature2 change");
@@ -367,8 +385,10 @@ public class GitDestinationIntegrateTest {
             %s=file://%s feature1
             %s=file://%s feature2
             """,
-            GitModule.DEFAULT_INTEGRATE_LABEL, repo.getWorkTree(),
-            GitModule.DEFAULT_INTEGRATE_LABEL, repo.getWorkTree()),
+            GitModule.DEFAULT_INTEGRATE_LABEL,
+            repo.getWorkTree(),
+            GitModule.DEFAULT_INTEGRATE_LABEL,
+            repo.getWorkTree()),
         "some content");
 
     // Make sure commit adds new text
@@ -447,7 +467,7 @@ public class GitDestinationIntegrateTest {
     migrateOriginChange(destination, "Base change\n", "not important 2");
 
     GitRepository repo =
-        gitUtil.mockRemoteRepo("github.com/example/test_repo").withWorkTree(workTree);
+        gitUtil.mockRemoteRepo("github.com/example/test_repo", repoFormat).withWorkTree(workTree);
     repo.simpleCommand("pull", "file://" + repoGitDir);
 
     GitRevision firstChange = singleChange(workTree, repo, "ignore_me", "Feature1 change");
@@ -560,7 +580,8 @@ public class GitDestinationIntegrateTest {
     GitDestination destination = destinationWithDefaultIntegrates();
     migrateOriginChange(destination, "Base change\n", "not important 2");
 
-    GitRepository repo = gitUtil.mockRemoteRepo("example.com/gerrit").withWorkTree(workTree);
+    GitRepository repo =
+        gitUtil.mockRemoteRepo("example.com/gerrit", repoFormat).withWorkTree(workTree);
 
     repo.simpleCommand("pull", "file://" + repoGitDir);
 
@@ -621,7 +642,8 @@ public class GitDestinationIntegrateTest {
     migrateOriginChange(destination, "Base change\n", "not important 2");
 
     Path workTree = Files.createTempDirectory("test");
-    GitRepository repo = gitUtil.mockRemoteRepo("example.com/gerrit").withWorkTree(workTree);
+    GitRepository repo =
+        gitUtil.mockRemoteRepo("example.com/gerrit", repoFormat).withWorkTree(workTree);
     repo.simpleCommand("pull", "file://" + repoGitDir);
 
     String label = new GerritIntegrateLabel(repo, options.general, "https://example.com/gerrit",
@@ -752,7 +774,7 @@ public class GitDestinationIntegrateTest {
     GitRepository repo = repo().withWorkTree(repoPath);
     options.general.setTemporaryFeaturesForTest(
         ImmutableMap.of("GIT_INTEGRATE_FAIL_IF_COMMON_BASELINE_NOT_FOUND", "true"));
-    gitUtil.mockRemoteRepo("github.com/example/test_repo").withWorkTree(repoPath);
+    gitUtil.mockRemoteRepo("github.com/example/test_repo", repoFormat).withWorkTree(repoPath);
 
     GitRevision unused =
         singleChange(repoPath, repo, "base_change.txt", "not important", "Base change\n");
@@ -760,7 +782,10 @@ public class GitDestinationIntegrateTest {
     migrateOriginChange(destination, "Base change\n", "test.txt", "not important", "test");
 
     // SHA-1 is 40 hex characters.
-    String invalidSha = "0000000000000000000000000000000000000001";
+    String invalidSha =
+        repoFormat == GitHashAlgorithm.SHA256
+            ? "0000000000000000000000000000000000000000000000000000000000000001"
+            : "0000000000000000000000000000000000000001";
     String invalidLabel =
         GitModule.DEFAULT_INTEGRATE_LABEL
             + "=https://github.com/example/test_repo/pull/0 from "
@@ -782,7 +807,8 @@ public class GitDestinationIntegrateTest {
             """
             r = git.destination(
                 %s
-            )""",
+            )\
+            """,
             Joiner.on(",\n    ").join(args)));
   }
 
