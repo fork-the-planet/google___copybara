@@ -261,6 +261,48 @@ public class ConfigGenHeuristicsTest {
   }
 
   @Test
+  public void testDestinationExcludePaths_minimizedToFolder() throws IOException {
+    writeFile(origin, "a/b/include/fileA", "foo1");
+    writeFile(destination, "include/fileA", "foo1");
+    writeFile(destination, "exclude_dir/fileB", "foo2");
+    writeFile(destination, "exclude_dir/fileC", "foo3");
+
+    ConfigGenHeuristics.Result result = createHeuristics().run();
+
+    assertThat(result.getDestinationExcludePaths().getPaths())
+        .containsExactly(Path.of("exclude_dir/**"));
+  }
+
+  @Test
+  public void testDestinationExcludePaths_minimizedToFolderNested() throws IOException {
+    writeFile(origin, "a/b/include/fileA", "foo1");
+    writeFile(destination, "include/fileA", "foo1");
+    writeFile(destination, "exclude_dir/foo/bar/adk/fileB", "foo2");
+    writeFile(destination, "exclude_dir/foo/bar/adk/fileC", "foo3");
+    writeFile(destination, "exclude_dir/foo/bar/adk/fileD", "foo3");
+    writeFile(destination, "exclude_dir/foo/bar/adk/fileE", "foo3");
+
+    ConfigGenHeuristics.Result result = createHeuristics().run();
+
+    assertThat(result.getDestinationExcludePaths().getPaths())
+        .containsExactly(Path.of("exclude_dir/**"));
+  }
+
+  @Test
+  public void testDestinationExcludePaths_notMinimizedIfContainsManagedFile() throws IOException {
+    writeFile(origin, "a/b/include/fileA", "foo1");
+    writeFile(origin, "a/b/mixed/fileM", "foo2");
+    writeFile(destination, "include/fileA", "foo1");
+    writeFile(destination, "mixed/fileM", "foo2");
+    writeFile(destination, "mixed/fileB", "foo3");
+
+    ConfigGenHeuristics.Result result = createHeuristics().run();
+
+    assertThat(result.getDestinationExcludePaths().getPaths())
+        .containsExactly(Path.of("mixed/fileB"));
+  }
+
+  @Test
   public void testDestinationOnlyPaths_propagatedToDestinationExcludePaths() throws IOException {
     destinationOnlyPaths = ImmutableSet.of(Path.of("include/fileA"));
 

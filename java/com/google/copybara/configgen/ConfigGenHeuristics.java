@@ -29,7 +29,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
 import com.google.copybara.GeneralOptions;
 import com.google.copybara.util.Glob;
@@ -276,17 +275,27 @@ public class ConfigGenHeuristics {
   }
 
   /**
-   * Returns the set of files that are in the destination but not in the origin. This is the union
-   * the known destinationOnlyPaths and the files that are in g3Files but not in similarFiles.
+   * Returns minimized paths/globs covering destination-only files. This combines known
+   * destinationOnlyPaths with optimized patterns for unmatched g3Files.
    */
   private ImmutableSet<Path> getDestinationExcludePaths(
       ImmutableSet<Path> g3Files,
       Map<Path, Path> similarFiles,
       ImmutableSet<Path> destinationOnlyPaths) {
-    return Sets.union(
-            destinationOnlyPaths,
-            g3Files.stream().filter(p -> !similarFiles.containsValue(p)).collect(toImmutableSet()))
-        .immutableCopy();
+    ImmutableSet<Path> destinationOnly =
+        g3Files.stream().filter(p -> !similarFiles.containsValue(p)).collect(toImmutableSet());
+
+    ImmutableSet.Builder<Path> result = ImmutableSet.builder();
+    result.addAll(destinationOnlyPaths);
+
+    if (!destinationOnly.isEmpty()) {
+      IncludesGlob minGlob =
+          new DestinationExcludesGlob(ImmutableSet.of("**"), ImmutableSet.of())
+              .minimizeScore(destinationOnly, ImmutableSet.copyOf(similarFiles.values()), 0);
+      minGlob.includes.forEach(p -> result.add(Path.of(p)));
+    }
+
+    return result.build();
   }
 
   /**
@@ -429,6 +438,40 @@ public class ConfigGenHeuristics {
     @Override
     protected IncludesGlob create(Set<String> includes, Set<String> excludes) {
       return new ExcludesGlob(includes, excludes);
+    }
+  }
+
+  /**
+   * Custom scoring for destination excludes. Rejects patterns if they catch any file we want to
+   * keep. Disallows the global wildcard ("**").
+   */
+  private static class DestinationExcludesGlob extends ExcludesGlob {
+    private DestinationExcludesGlob(Set<String> includes, Set<String> excludes) {
+      super(includes, excludes);
+    }
+
+    @Override
+    protected int score() {
+      // If excludes needs excludes, it is not a good excludes.
+      if (!super.excludes.isEmpty()) {
+        return Integer.MAX_VALUE;
+      }
+      // Never include all files, otherwise importing is pointless.
+      if (includes.contains("**")) {
+        return Integer.MAX_VALUE;
+      }
+
+      int penalty = 0;
+      // Prefer explicit paths over wildcards to optimize the glob.
+      if (includes.stream().anyMatch(i -> i.contains("*"))) {
+        penalty += 1;
+      }
+      return super.score() + penalty;
+    }
+
+    @Override
+    protected IncludesGlob create(Set<String> includes, Set<String> excludes) {
+      return new DestinationExcludesGlob(includes, excludes);
     }
   }
 
