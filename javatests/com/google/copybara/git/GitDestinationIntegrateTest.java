@@ -463,7 +463,8 @@ public class GitDestinationIntegrateTest {
   public void testGitHubSemiFakeMerge() throws ValidationException, IOException, RepoException {
     Path workTree = Files.createTempDirectory("test");
     // Create a common baseline between the two repos
-    GitDestination destination = destinationWithDefaultIntegrates();
+    GitDestination destination =
+        destinationWithDefaultIntegrates("integrates = [git.integrate(ignore_errors = True)]");
     migrateOriginChange(destination, "Base change\n", "not important 2");
 
     GitRepository repo =
@@ -704,10 +705,16 @@ public class GitDestinationIntegrateTest {
     return previous;
   }
 
-  private GitDestination destinationWithDefaultIntegrates() throws ValidationException {
-    return destination("url = '" + url + "'",
-        String.format("push = '%s'", primaryBranch),
-        String.format("fetch = '%s'", primaryBranch));
+  private GitDestination destinationWithDefaultIntegrates(String... extraArgs)
+      throws ValidationException {
+    return destination(
+        ImmutableList.<String>builder()
+            .add("url = '" + url + "'")
+            .add(String.format("push = '%s'", primaryBranch))
+            .add(String.format("fetch = '%s'", primaryBranch))
+            .addAll(ImmutableList.copyOf(extraArgs))
+            .build()
+            .toArray(new String[0]));
   }
 
   private GitRevision singleChange(Path workTree, GitRepository repo, String file, String msg)

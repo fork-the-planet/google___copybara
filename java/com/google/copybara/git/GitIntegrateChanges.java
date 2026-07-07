@@ -154,7 +154,7 @@ public class GitIntegrateChanges implements StarlarkValue {
             generalOptions.console(),
             generalOptions.getDirFactory(),
             generalOptions.isTemporaryFeature(
-                "GIT_INTEGRATE_FAIL_IF_COMMON_BASELINE_NOT_FOUND", false));
+                "GIT_INTEGRATE_FAIL_IF_COMMON_BASELINE_NOT_FOUND", true));
         optionalIntegrateLabel = Optional.of(integrateLabel);
       } catch (ValidationException e) {
         throw new CannotIntegrateException("Error resolving " + label.getValue(), e);
