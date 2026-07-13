@@ -5228,7 +5228,7 @@ max([1, -1, -2, 2], key = abs) == -2  # the first encountered with maximal key v
 
 Parameter | Description
 --------- | -----------
-<span id=max.key href=#max.key>key</span> | <code>callable</code> or <code>NoneType</code><br><p>An optional function applied to each element before comparison.</p>
+<span id=max.key href=#max.key>key</span> | <code>callable</code> or <code>NoneType</code><br><p>An optional function applied to each element before comparison. Must not mutate the args sequence.</p>
 <span id=max.args href=#max.args>args</span> | <code><a href="#list">list</a></code><br><p>The elements to be checked.</p>
 
 <a id="min" aria-hidden="true"></a>
@@ -5248,7 +5248,7 @@ min([2, -2, -1, 1], key = abs) == -1  # the first encountered with minimal key v
 
 Parameter | Description
 --------- | -----------
-<span id=min.key href=#min.key>key</span> | <code>callable</code> or <code>NoneType</code><br><p>An optional function applied to each element before comparison.</p>
+<span id=min.key href=#min.key>key</span> | <code>callable</code> or <code>NoneType</code><br><p>An optional function applied to each element before comparison. Must not mutate the args sequence.</p>
 <span id=min.args href=#min.args>args</span> | <code><a href="#list">list</a></code><br><p>The elements to be checked.</p>
 
 <a id="new_author" aria-hidden="true"></a>
