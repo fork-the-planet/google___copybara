@@ -18,6 +18,8 @@ package com.google.copybara;
 
 import static com.google.common.base.Throwables.throwIfInstanceOf;
 import static com.google.common.base.Throwables.throwIfUnchecked;
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.Streams.stream;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.copybara.TransformWork.COPYBARA_CONFIG_PATH_LABEL;
 import static com.google.copybara.TransformWork.COPYBARA_CONTEXT_REFERENCE_LABEL;
@@ -38,8 +40,6 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
-import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.google.common.collect.Streams.stream;
 import static org.mockito.Mockito.when;
 
 import com.google.common.base.Joiner;
@@ -5828,6 +5828,18 @@ public class WorkflowTest {
     Workflow<?, ?> workflow = skylarkWorkflowInDirectory("default", SQUASH, "dir/");
 
     assertThat(workflow.getConsistencyFilePath()).isEqualTo("do-not-edit.bara.consistency");
+  }
+
+  @Test
+  public void mergeImportTrue_withConsistencyFileObject_passes() throws Exception {
+    mergeImport = "True";
+    extraWorkflowFields =
+        ImmutableList.of(
+            "consistency_file = core.consistency_file_config(path = 'some.bara.consistency')");
+
+    Workflow<?, ?> workflow = skylarkWorkflowInDirectory("default", SQUASH, "dir/");
+
+    assertThat(workflow.getConsistencyFilePath()).isEqualTo("some.bara.consistency");
   }
 
   @Test
