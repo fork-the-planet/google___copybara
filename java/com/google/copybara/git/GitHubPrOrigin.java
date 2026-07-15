@@ -104,6 +104,7 @@ public class GitHubPrOrigin implements Origin<GitRevision> {
   public static final String GITHUB_PR_NUMBER_LABEL = "GITHUB_PR_NUMBER";
   public static final String GITHUB_BASE_BRANCH = "GITHUB_BASE_BRANCH";
   public static final String GITHUB_BASE_BRANCH_SHA1 = "GITHUB_BASE_BRANCH_SHA1";
+  public static final String GITHUB_BASE_BRANCH_SHA = "GITHUB_BASE_BRANCH_SHA";
   public static final String GITHUB_PR_USE_MERGE = "GITHUB_PR_USE_MERGE";
   public static final String GITHUB_PR_TITLE = "GITHUB_PR_TITLE";
   public static final String GITHUB_PR_URL = "GITHUB_PR_URL";
@@ -433,6 +434,7 @@ public class GitHubPrOrigin implements Origin<GitRevision> {
 
     String mergeBase = getRepository().mergeBase(refForMigration, LOCAL_PR_BASE_BRANCH);
     labels.put(GITHUB_BASE_BRANCH_SHA1, mergeBase);
+    labels.put(GITHUB_BASE_BRANCH_SHA, mergeBase);
 
     labels.put(GITHUB_PR_TITLE, prData.getTitle());
     labels.put(GITHUB_PR_BODY, prData.getBody());
@@ -722,9 +724,12 @@ public class GitHubPrOrigin implements Origin<GitRevision> {
       public ImmutableList<GitRevision> findBaselinesWithoutLabel(
           GitRevision startRevision, int limit) throws RepoException, ValidationException {
         String baseline =
-            Iterables.getLast(startRevision.associatedLabels().get(GITHUB_BASE_BRANCH_SHA1), null);
+            Iterables.getLast(
+                startRevision.associatedLabels().get(GITHUB_BASE_BRANCH_SHA),
+                Iterables.getLast(
+                    startRevision.associatedLabels().get(GITHUB_BASE_BRANCH_SHA1), null));
         checkNotNull(
-            baseline, "%s label should be present in %s", GITHUB_BASE_BRANCH_SHA1, startRevision);
+            baseline, "%s label should be present in %s", GITHUB_BASE_BRANCH_SHA, startRevision);
 
         GitRevision baselineRev = getRepository().resolveReference(baseline);
         // Don't skip the first change as it is already the baseline

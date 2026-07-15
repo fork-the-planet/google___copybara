@@ -23,6 +23,7 @@ import static com.google.copybara.config.SkylarkUtil.convertFromNoneable;
 import static com.google.copybara.config.SkylarkUtil.convertToOptional;
 import static com.google.copybara.config.SkylarkUtil.stringToEnum;
 import static com.google.copybara.git.GitHubPrOrigin.GITHUB_BASE_BRANCH;
+import static com.google.copybara.git.GitHubPrOrigin.GITHUB_BASE_BRANCH_SHA;
 import static com.google.copybara.git.GitHubPrOrigin.GITHUB_BASE_BRANCH_SHA1;
 import static com.google.copybara.git.GitHubPrOrigin.GITHUB_PR_ASSIGNEE;
 import static com.google.copybara.git.GitHubPrOrigin.GITHUB_PR_BODY;
@@ -930,7 +931,10 @@ public class GitModule implements LabelsAwareModule, StarlarkValue {
               + ": The name of the branch which serves as the base for the Pull Request.\n"
               + "  - "
               + GITHUB_BASE_BRANCH_SHA1
-              + ": The SHA-1 of the commit used as baseline. Generally, the baseline commit is the"
+              + " Use GITHUB_BASE_BRANCH_SHA instead.\n"
+              + "  - "
+              + GITHUB_BASE_BRANCH_SHA
+              + ": The commit hash used as baseline. Generally, the baseline commit is the"
               + " point of divergence between the PR's 'base' and 'head' branches. When `use_merge"
               + " = True` is specified, the baseline is instead the tip of the PR's base branch.\n"
               + "  - "
